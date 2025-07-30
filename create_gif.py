@@ -2,57 +2,64 @@ import streamlit as st
 import imageio
 import tempfile
 import os
+from PIL import Image
+import base64
+import numpy as np
 
 st.set_page_config(page_title="GifCraft 🎨", page_icon="🌀")
 
 st.title("🎨 GifCraft - Create Your Own GIFs")
 st.write("Upload images and get a fun looping GIF instantly!")
 
-# Upload multiple image files
+# Upload image files
 uploaded_files = st.file_uploader(
     "📸 Upload 2 or more images (JPG/PNG)",
     type=["jpg", "jpeg", "png"],
     accept_multiple_files=True
 )
 
-# Fixed duration per frame in milliseconds
-duration = 500
+# Fixed duration per frame
+duration = 500  # ms
 
 if uploaded_files and len(uploaded_files) >= 2:
     with st.spinner("Creating your GIF..."):
 
-        # Save uploaded images to a temp directory
+        # Create a temporary directory
         temp_dir = tempfile.mkdtemp()
-        filenames = []
+        frames = []
 
-        for i, file in enumerate(uploaded_files):
-            temp_path = os.path.join(temp_dir, f"frame_{i}.png")
-            with open(temp_path, "wb") as f:
-                f.write(file.read())
-            filenames.append(temp_path)
+        # Resize all images to the size of the first image
+        base_image = Image.open(uploaded_files[0]).convert("RGB")
+        target_size = base_image.size
+        frames.append(np.array(base_image.resize(target_size)))
 
-        # Read images and create GIF
-        images = [imageio.imread(fname) for fname in filenames]
+        for file in uploaded_files[1:]:
+            img = Image.open(file).convert("RGB")
+            resized_img = img.resize(target_size)
+            frames.append(np.array(resized_img))
+
+        # Create the GIF
         gif_path = os.path.join(temp_dir, "output.gif")
-        imageio.mimsave(gif_path, images, duration=duration / 1000.0)  # convert ms to seconds
+        imageio.mimsave(gif_path, frames, duration=duration / 1000.0)
 
-        # Display GIF with HTML (to ensure animation works)
+        # Show GIF preview using HTML + base64
         st.success("✅ GIF created successfully!")
 
         st.markdown("### 🔄 Preview your animated GIF:")
-        gif_data = open(gif_path, "rb").read()
-        st.markdown(
-            f'<img src="data:image/gif;base64,{gif_data.encode("base64").decode()}" alt="gif preview" style="max-width:100%;">',
-            unsafe_allow_html=True
-        )
+        with open(gif_path, "rb") as f:
+            gif_bytes = f.read()
+            b64 = base64.b64encode(gif_bytes).decode()
+            st.markdown(
+                f'<img src="data:image/gif;base64,{b64}" alt="GIF preview" style="max-width:100%;">',
+                unsafe_allow_html=True
+            )
 
-        # Provide download button
+        # Download button
         st.download_button(
             "📥 Download GIF",
-            gif_data,
+            gif_bytes,
             file_name="your_gif.gif",
             mime="image/gif"
         )
-
 else:
     st.info("Please upload at least 2 image files to create a GIF.")
