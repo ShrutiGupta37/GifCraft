@@ -25,33 +25,30 @@ if uploaded_files and len(uploaded_files) >= 2:
         temp_dir = tempfile.mkdtemp()
         frames = []
 
-        # Get target size from the first image
+        # Resize all images to size of first image
         first_img = Image.open(uploaded_files[0]).convert("RGB")
         target_size = first_img.size
         frames.append(np.array(first_img.resize(target_size)))
 
-        # Resize and store remaining images
         for file in uploaded_files[1:]:
             img = Image.open(file).convert("RGB")
             img = img.resize(target_size)
             frames.append(np.array(img))
 
-        # Create and save the GIF
+        # Save GIF
         gif_path = os.path.join(temp_dir, "output.gif")
         imageio.mimsave(gif_path, frames, duration=duration / 1000.0)
 
         st.success("✅ GIF created successfully!")
 
-        # GIF preview using HTML that actually animates
+        # 🌀 Display animated GIF using st.video (hack)
         st.markdown("### 🔄 Preview your animated GIF:")
-        st.markdown(
-            f'<img src="file://{gif_path}" alt="Generated GIF" style="max-width: 100%;">',
-            unsafe_allow_html=True
-        )
-
-        # Download option
         with open(gif_path, "rb") as f:
-            st.download_button("📥 Download GIF", f, file_name="your_gif.gif", mime="image/gif")
+            gif_bytes = f.read()
+            st.video(gif_bytes)
+
+        # 📥 Download button
+        st.download_button("📥 Download GIF", gif_bytes, file_name="your_gif.gif", mime="image/gif")
 
 else:
     st.info("Please upload at least 2 image files to create a GIF.")
